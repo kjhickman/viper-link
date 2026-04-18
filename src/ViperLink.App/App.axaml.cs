@@ -39,7 +39,7 @@ public partial class App : Avalonia.Application
     {
         _refreshTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(30),
+            Interval = TimeSpan.FromMinutes(2),
         };
 
         _refreshTimer.Tick += (_, _) => RefreshTrayState();
