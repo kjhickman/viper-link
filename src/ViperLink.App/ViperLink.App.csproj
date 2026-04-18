@@ -3,6 +3,10 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <AssemblyName>ViperLink</AssemblyName>
+    <AssemblyTitle>ViperLink</AssemblyTitle>
+    <Product>ViperLink</Product>
+    <Description>Tray battery monitor for the Razer Viper Ultimate.</Description>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
