@@ -12,6 +12,7 @@ namespace ViperLink.App;
 public partial class App : Application
 {
     private readonly IViperPowerReader _powerReader = new WindowsViperUltimateReader();
+    private readonly TrayIconRenderer _trayIconRenderer = new();
     private MousePowerSnapshot? _lastSuccessfulSnapshot;
     private TrayIcon? _statusTrayIcon;
     private NativeMenuItem? _batteryMenuItem;
@@ -96,6 +97,7 @@ public partial class App : Application
         _diagnosticsMenuItem.IsVisible = result.ShowDiagnostics;
         _logMenuItem.Header = result.LogFilePath is null ? "Log: unavailable" : $"Log: {result.LogFilePath}";
         _logMenuItem.IsVisible = result.ShowDiagnostics;
+        _statusTrayIcon.Icon = _trayIconRenderer.Render(result.IconBatteryPercent);
         _statusTrayIcon.ToolTipText = result.ToolTipText;
     }
 
@@ -138,10 +140,9 @@ public partial class App : Application
         quitMenuItem.Click += QuitClicked;
         menu.Add(quitMenuItem);
 
-        var iconUri = new Uri("avares://ViperLink.App/Assets/avalonia-logo.ico");
         _statusTrayIcon = new TrayIcon
         {
-            Icon = new WindowIcon(AssetLoader.Open(iconUri)),
+            Icon = _trayIconRenderer.Render(null),
             ToolTipText = "ViperLink",
             Menu = menu,
             IsVisible = true,

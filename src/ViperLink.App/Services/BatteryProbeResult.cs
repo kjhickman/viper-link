@@ -11,7 +11,8 @@ public sealed record BatteryProbeResult(
     string DiagnosticsHeader,
     bool ShowDiagnostics,
     string ToolTipText,
-    string? LogFilePath = null)
+    string? LogFilePath = null,
+    int? IconBatteryPercent = null)
 {
     public static BatteryProbeResult FromSnapshot(MousePowerSnapshot snapshot, MousePowerSnapshot? fallbackSnapshot = null)
     {
@@ -37,7 +38,8 @@ public sealed record BatteryProbeResult(
             diagnosticsHeader,
             !snapshot.IsSuccessful,
             toolTipText,
-            snapshot.LogFilePath);
+            snapshot.LogFilePath,
+            displaySnapshot.BatteryPercent);
     }
 
     private static string LastDiagnosticLine(string diagnostics)
