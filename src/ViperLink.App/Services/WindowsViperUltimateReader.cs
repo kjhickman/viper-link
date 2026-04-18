@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text;
+using ViperLink.App.Diagnostics;
 using ViperLink.App.Platform.Abstractions;
 using ViperLink.App.Platform.Windows.Hid;
 using ViperLink.App.Razer.Devices;
-using ViperLink.App;
 
 namespace ViperLink.App.Services;
 
@@ -17,17 +16,19 @@ public sealed class WindowsViperUltimateReader : IMousePowerReader
     private readonly IHidDeviceEnumerator _deviceEnumerator;
     private readonly IHidFeatureTransport _featureTransport;
     private readonly IReadOnlyList<IRazerMouseDriver> _mouseDrivers;
+    private readonly ProbeLogWriter _probeLogWriter;
 
     public WindowsViperUltimateReader()
-        : this(new WindowsHidDeviceEnumerator(), new WindowsHidFeatureTransport(), [new ViperUltimateDriver()])
+        : this(new WindowsHidDeviceEnumerator(), new WindowsHidFeatureTransport(), [new ViperUltimateDriver()], new ProbeLogWriter())
     {
     }
 
-    internal WindowsViperUltimateReader(IHidDeviceEnumerator deviceEnumerator, IHidFeatureTransport featureTransport, IReadOnlyList<IRazerMouseDriver> mouseDrivers)
+    internal WindowsViperUltimateReader(IHidDeviceEnumerator deviceEnumerator, IHidFeatureTransport featureTransport, IReadOnlyList<IRazerMouseDriver> mouseDrivers, ProbeLogWriter probeLogWriter)
     {
         _deviceEnumerator = deviceEnumerator;
         _featureTransport = featureTransport;
         _mouseDrivers = mouseDrivers;
+        _probeLogWriter = probeLogWriter;
     }
 
     public MousePowerSnapshot Probe()
@@ -158,39 +159,9 @@ public sealed class WindowsViperUltimateReader : IMousePowerReader
             $"{name} ({device.VendorId:x4}:{device.ProductId:x4}, feature={device.FeatureReportLength}, path={device.DevicePath})");
     }
 
-    private static MousePowerSnapshot FinalizeSnapshot(MousePowerSnapshot snapshot)
+    private MousePowerSnapshot FinalizeSnapshot(MousePowerSnapshot snapshot)
     {
-        return snapshot with { LogFilePath = WriteDiagnosticsLog(snapshot) };
-    }
-
-    private static string? WriteDiagnosticsLog(MousePowerSnapshot snapshot)
-    {
-        try
-        {
-            var logDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppIdentity.LogDirectoryName);
-            Directory.CreateDirectory(logDirectory);
-
-            var logPath = Path.Combine(logDirectory, "probe.log");
-            var builder = new StringBuilder();
-            builder.AppendLine($"Timestamp: {snapshot.Timestamp:O}");
-            builder.AppendLine($"DeviceDisplayName: {snapshot.DeviceDisplayName}");
-            builder.AppendLine($"BatteryPercent: {(snapshot.BatteryPercent is int battery ? battery : "n/a")}");
-            builder.AppendLine($"IsCharging: {(snapshot.IsCharging is bool isCharging ? isCharging : "n/a")}");
-            builder.AppendLine($"IsSuccessful: {snapshot.IsSuccessful}");
-            builder.AppendLine($"FailureKind: {snapshot.FailureKind}");
-            builder.AppendLine($"ResultDetail: {snapshot.ResultDetail}");
-
-            builder.AppendLine("Diagnostics:");
-            builder.AppendLine(snapshot.Diagnostics);
-            File.WriteAllText(logPath, builder.ToString());
-            return logPath;
-        }
-        catch
-        {
-            return null;
-        }
+        return snapshot with { LogFilePath = _probeLogWriter.Write(snapshot) };
     }
 
     private static (PowerFailureKind FailureKind, string ResultDetail) ClassifyProbeFailure(string diagnostics)
