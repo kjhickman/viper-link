@@ -10,6 +10,7 @@ public sealed class TrayPresenter
     private readonly NativeMenuItem _statusMenuItem;
     private readonly NativeMenuItem _deviceMenuItem;
     private readonly NativeMenuItem _resultMenuItem;
+    private readonly NativeMenuItem _versionMenuItem;
     private readonly NativeMenuItem _diagnosticsMenuItem;
     private readonly NativeMenuItem _logMenuItem;
 
@@ -19,6 +20,7 @@ public sealed class TrayPresenter
         _statusMenuItem = CreateReadOnlyItem("Status: probing...");
         _deviceMenuItem = CreateReadOnlyItem("Device: probing...");
         _resultMenuItem = CreateReadOnlyItem("Last updated: waiting to start");
+        _versionMenuItem = CreateReadOnlyItem($"Version: {AppIdentity.DisplayVersion}");
         _diagnosticsMenuItem = CreateReadOnlyItem(string.Empty);
         _logMenuItem = CreateReadOnlyItem(string.Empty);
 
@@ -27,6 +29,7 @@ public sealed class TrayPresenter
         menu.Add(_statusMenuItem);
         menu.Add(_deviceMenuItem);
         menu.Add(_resultMenuItem);
+        menu.Add(_versionMenuItem);
         menu.Add(_diagnosticsMenuItem);
         menu.Add(_logMenuItem);
         menu.Add(new NativeMenuItemSeparator());
