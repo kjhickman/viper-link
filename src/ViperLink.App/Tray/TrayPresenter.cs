@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using ViperLink.App.Services;
 
 namespace ViperLink.App.Tray;
 

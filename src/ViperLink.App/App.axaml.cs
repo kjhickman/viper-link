@@ -4,14 +4,14 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using System;
 using ViperLink.App.Application;
-using ViperLink.App.Services;
+using ViperLink.App.Platform.Windows;
 using ViperLink.App.Tray;
 
 namespace ViperLink.App;
 
 public partial class App : Avalonia.Application
 {
-    private readonly PowerPollingController _pollingController = new(new WindowsViperUltimateReader());
+    private readonly PowerPollingController _pollingController = new(new WindowsRazerMouseReader());
     private TrayPresenter? _trayPresenter;
     private DispatcherTimer? _refreshTimer;
 

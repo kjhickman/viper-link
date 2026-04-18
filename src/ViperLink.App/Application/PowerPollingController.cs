@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
-using ViperLink.App.Services;
+using ViperLink.App.Domain;
+using ViperLink.App.Tray;
 
 namespace ViperLink.App.Application;
 

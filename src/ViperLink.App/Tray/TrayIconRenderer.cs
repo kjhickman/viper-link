@@ -6,7 +6,7 @@ using Avalonia.Media.Imaging;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace ViperLink.App.Services;
+namespace ViperLink.App.Tray;
 
 public sealed class TrayIconRenderer
 {

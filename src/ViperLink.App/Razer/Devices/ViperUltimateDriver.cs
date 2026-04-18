@@ -1,7 +1,8 @@
 using System;
 using System.Text;
+using ViperLink.App.Domain;
 using ViperLink.App.Platform.Abstractions;
-using ViperLink.App.Services;
+using ViperLink.App.Razer.Protocol;
 
 namespace ViperLink.App.Razer.Devices;
 

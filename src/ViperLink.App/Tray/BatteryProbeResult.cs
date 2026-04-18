@@ -1,8 +1,9 @@
 using System;
 using System.Linq;
 using ViperLink.App;
+using ViperLink.App.Domain;
 
-namespace ViperLink.App.Services;
+namespace ViperLink.App.Tray;
 
 public sealed record BatteryProbeResult(
     string BatteryHeader,

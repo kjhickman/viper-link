@@ -1,4 +1,5 @@
 using System.Text;
+using ViperLink.App.Domain;
 using ViperLink.App.Platform.Abstractions;
 
 namespace ViperLink.App.Razer.Devices;

@@ -1,6 +1,6 @@
 using System;
 
-namespace ViperLink.App.Services;
+namespace ViperLink.App.Domain;
 
 public sealed record MousePowerSnapshot(
     DateTimeOffset Timestamp,

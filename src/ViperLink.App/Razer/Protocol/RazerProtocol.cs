@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace ViperLink.App.Services;
+namespace ViperLink.App.Razer.Protocol;
 
 internal static class RazerProtocol
 {

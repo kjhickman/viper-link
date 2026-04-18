@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using ViperLink.App.Application;
 using ViperLink.App.Diagnostics;
+using ViperLink.App.Domain;
 using ViperLink.App.Platform.Abstractions;
 using ViperLink.App.Platform.Windows.Hid;
 using ViperLink.App.Razer.Devices;
+using ViperLink.App.Razer.Protocol;
 
-namespace ViperLink.App.Services;
+namespace ViperLink.App.Platform.Windows;
 
-public sealed class WindowsViperUltimateReader : IMousePowerReader
+public sealed class WindowsRazerMouseReader : IMousePowerReader
 {
     private const int RazerVendorId = 0x1532;
     private readonly IHidDeviceEnumerator _deviceEnumerator;
@@ -18,12 +21,12 @@ public sealed class WindowsViperUltimateReader : IMousePowerReader
     private readonly IReadOnlyList<IRazerMouseDriver> _mouseDrivers;
     private readonly ProbeLogWriter _probeLogWriter;
 
-    public WindowsViperUltimateReader()
+    public WindowsRazerMouseReader()
         : this(new WindowsHidDeviceEnumerator(), new WindowsHidFeatureTransport(), [new ViperUltimateDriver()], new ProbeLogWriter())
     {
     }
 
-    internal WindowsViperUltimateReader(IHidDeviceEnumerator deviceEnumerator, IHidFeatureTransport featureTransport, IReadOnlyList<IRazerMouseDriver> mouseDrivers, ProbeLogWriter probeLogWriter)
+    internal WindowsRazerMouseReader(IHidDeviceEnumerator deviceEnumerator, IHidFeatureTransport featureTransport, IReadOnlyList<IRazerMouseDriver> mouseDrivers, ProbeLogWriter probeLogWriter)
     {
         _deviceEnumerator = deviceEnumerator;
         _featureTransport = featureTransport;
