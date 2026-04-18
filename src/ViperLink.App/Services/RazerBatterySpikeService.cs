@@ -12,12 +12,8 @@ public sealed class RazerBatterySpikeService
 {
     private const int RazerVendorId = 0x1532;
     private static readonly HashSet<int> PreferredProductIds = [0x007a, 0x007b];
-    private const int BatteryReportLength = 90;
-    private const byte BatteryCommandClass = 0x07;
-    private const byte GetBatteryCommandId = 0x80;
-    private static readonly byte[] CandidateTransactionIds = [0x00, 0x1f, 0x3f, 0xff];
 
-    public BatteryProbeResult Probe()
+    public MousePowerSnapshot Probe()
     {
         var timestamp = DateTimeOffset.Now;
         var diagnostics = new StringBuilder();
@@ -34,8 +30,15 @@ public sealed class RazerBatterySpikeService
         }
         catch (Exception ex)
         {
-            var result = BuildUnavailableResult(timestamp, "enumeration failed", $"HID enumeration failed: {ex.Message}");
-            return result with { LogFilePath = WriteDiagnosticsLog(timestamp, diagnostics.ToString(), result) };
+            diagnostics.AppendLine($"HID enumeration failed: {ex.Message}");
+            return FinalizeSnapshot(new MousePowerSnapshot(
+                timestamp,
+                "no compatible Razer HID device",
+                null,
+                null,
+                false,
+                "enumeration failed",
+                diagnostics.ToString()));
         }
 
         diagnostics.AppendLine($"Detected {razerDevices.Count} Razer HID device(s).");
@@ -46,8 +49,15 @@ public sealed class RazerBatterySpikeService
 
         if (razerDevices.Count == 0)
         {
-            var result = BuildUnavailableResult(timestamp, "no devices", "No Razer HID devices found.");
-            return result with { LogFilePath = WriteDiagnosticsLog(timestamp, diagnostics.ToString(), result) };
+            diagnostics.AppendLine("No Razer HID devices found.");
+            return FinalizeSnapshot(new MousePowerSnapshot(
+                timestamp,
+                "no compatible Razer HID device",
+                null,
+                null,
+                false,
+                "no devices",
+                diagnostics.ToString()));
         }
 
         var candidateDevices = PrioritizeDevices(razerDevices);
@@ -59,27 +69,25 @@ public sealed class RazerBatterySpikeService
 
             if (TryReadBattery(device, diagnostics, out var batteryPercent))
             {
-                var tooltip = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"ViperLink spike\n{device.GetFriendlyName()}: {batteryPercent}%");
-
-                return new BatteryProbeResult(
-                    $"Battery: {batteryPercent}%",
-                    $"Device: {DescribeDevice(device)}",
-                    $"Last probe: success at {timestamp:HH:mm:ss}",
-                    TruncateHeader($"Diagnostics: {LastDiagnosticLine(diagnostics)}"),
-                    tooltip,
-                    WriteDiagnosticsLog(timestamp, diagnostics.ToString(), null));
+                return FinalizeSnapshot(new MousePowerSnapshot(
+                    timestamp,
+                    DescribeDevice(device),
+                    batteryPercent,
+                    null,
+                    true,
+                    "success",
+                    diagnostics.ToString()));
             }
         }
 
-        var failureResult = new BatteryProbeResult(
-            "Battery: unavailable",
-            $"Device: tried {candidateDevices.Count}/{razerDevices.Count} Razer HID device(s)",
-            $"Last probe: no battery response at {timestamp:HH:mm:ss}",
-            TruncateHeader($"Diagnostics: {LastDiagnosticLine(diagnostics)}"),
-            "ViperLink spike\nBattery unavailable");
-        return failureResult with { LogFilePath = WriteDiagnosticsLog(timestamp, diagnostics.ToString(), failureResult) };
+        return FinalizeSnapshot(new MousePowerSnapshot(
+            timestamp,
+            $"tried {candidateDevices.Count}/{razerDevices.Count} Razer HID device(s)",
+            null,
+            null,
+            false,
+            "no battery response",
+            diagnostics.ToString()));
     }
 
     private static IReadOnlyList<HidDevice> PrioritizeDevices(IReadOnlyList<HidDevice> devices)
@@ -106,7 +114,7 @@ public sealed class RazerBatterySpikeService
         }
 
         var reportSized = devices
-            .Where(device => device.GetMaxFeatureReportLength() >= BatteryReportLength)
+            .Where(device => device.GetMaxFeatureReportLength() >= RazerProtocol.ReportLength)
             .ToArray();
 
         return reportSized.Length > 0 ? reportSized : devices;
@@ -116,9 +124,9 @@ public sealed class RazerBatterySpikeService
     {
         batteryPercent = 0;
 
-        var reportLength = Math.Max(BatteryReportLength, device.GetMaxFeatureReportLength());
+        var reportLength = Math.Max(RazerProtocol.ReportLength, device.GetMaxFeatureReportLength());
         diagnostics.AppendLine($"Feature report length: {reportLength}");
-        if (reportLength < BatteryReportLength)
+        if (reportLength < RazerProtocol.ReportLength)
         {
             diagnostics.AppendLine("Skipped: feature report length is shorter than 90 bytes.");
             return false;
@@ -141,9 +149,9 @@ public sealed class RazerBatterySpikeService
             stream.ReadTimeout = 1000;
             stream.WriteTimeout = 1000;
 
-            foreach (var transactionId in CandidateTransactionIds)
+            foreach (var transactionId in RazerProtocol.CandidateTransactionIds)
             {
-                var request = BuildBatteryRequest(reportLength, transactionId);
+                var request = RazerProtocol.BuildRequest(reportLength, transactionId, RazerProtocol.PowerCommandClass, RazerProtocol.GetBatteryCommandId);
                 var response = new byte[reportLength];
 
                 try
@@ -159,12 +167,12 @@ public sealed class RazerBatterySpikeService
 
                 diagnostics.AppendLine($"Transaction 0x{transactionId:x2} response: {FormatReport(response)}");
 
-                if (!LooksLikeBatteryResponse(response, transactionId))
+                if (!RazerProtocol.LooksLikeResponse(response, transactionId, RazerProtocol.PowerCommandClass, RazerProtocol.GetBatteryCommandId))
                 {
                     continue;
                 }
 
-                batteryPercent = (int)Math.Round(response[9] * 100.0 / 255.0, MidpointRounding.AwayFromZero);
+                batteryPercent = RazerProtocol.ParseBatteryPercent(response);
                 diagnostics.AppendLine($"Battery byte {response[9]} parsed as {batteryPercent}%.");
                 return true;
             }
@@ -176,12 +184,12 @@ public sealed class RazerBatterySpikeService
     private static bool TryReadBatteryViaWindowsHid(HidDevice device, int reportLength, StringBuilder diagnostics, out int batteryPercent)
     {
         batteryPercent = 0;
-        var payloadOffset = reportLength == BatteryReportLength + 1 ? 1 : 0;
+        var payloadOffset = reportLength == RazerProtocol.ReportLength + 1 ? 1 : 0;
         var payloadLength = reportLength - payloadOffset;
 
-        foreach (var transactionId in CandidateTransactionIds)
+        foreach (var transactionId in RazerProtocol.CandidateTransactionIds)
         {
-            var requestPayload = BuildBatteryRequest(payloadLength, transactionId);
+            var requestPayload = RazerProtocol.BuildRequest(payloadLength, transactionId, RazerProtocol.PowerCommandClass, RazerProtocol.GetBatteryCommandId);
             var request = new byte[reportLength];
             Array.Copy(requestPayload, 0, request, payloadOffset, requestPayload.Length);
 
@@ -196,58 +204,17 @@ public sealed class RazerBatterySpikeService
             var responsePayload = response.AsSpan(payloadOffset, payloadLength).ToArray();
             diagnostics.AppendLine($"Transaction 0x{transactionId:x2} response: {FormatReport(responsePayload)}");
 
-            if (!LooksLikeBatteryResponse(responsePayload, transactionId))
+            if (!RazerProtocol.LooksLikeResponse(responsePayload, transactionId, RazerProtocol.PowerCommandClass, RazerProtocol.GetBatteryCommandId))
             {
                 continue;
             }
 
-            batteryPercent = (int)Math.Round(responsePayload[9] * 100.0 / 255.0, MidpointRounding.AwayFromZero);
+            batteryPercent = RazerProtocol.ParseBatteryPercent(responsePayload);
             diagnostics.AppendLine($"Battery byte {responsePayload[9]} parsed as {batteryPercent}%.");
             return true;
         }
 
         return false;
-    }
-
-    private static byte[] BuildBatteryRequest(int reportLength, byte transactionId)
-    {
-        var request = new byte[reportLength];
-        request[0] = 0x00;
-        request[1] = transactionId;
-        request[5] = 0x02;
-        request[6] = BatteryCommandClass;
-        request[7] = GetBatteryCommandId;
-        request[88] = CalculateChecksum(request);
-        return request;
-    }
-
-    private static byte CalculateChecksum(IReadOnlyList<byte> report)
-    {
-        byte checksum = 0x00;
-        for (var index = 2; index <= 87; index++)
-        {
-            checksum ^= report[index];
-        }
-
-        return checksum;
-    }
-
-    private static bool LooksLikeBatteryResponse(IReadOnlyList<byte> response, byte transactionId)
-    {
-        if (response.Count < BatteryReportLength)
-        {
-            return false;
-        }
-
-        var status = response[0];
-        if (status is not (0x00 or 0x02 or 0x04))
-        {
-            return false;
-        }
-
-        return response[1] == transactionId
-            && response[6] == BatteryCommandClass
-            && response[7] == GetBatteryCommandId;
     }
 
     private static string DescribeDevice(HidDevice device)
@@ -260,21 +227,16 @@ public sealed class RazerBatterySpikeService
 
     private static string FormatReport(IReadOnlyList<byte> report)
     {
-        var bytesToShow = report.Take(BatteryReportLength).Select(value => value.ToString("x2", CultureInfo.InvariantCulture));
+        var bytesToShow = report.Take(RazerProtocol.ReportLength).Select(value => value.ToString("x2", CultureInfo.InvariantCulture));
         return string.Join(" ", bytesToShow);
     }
 
-    private static BatteryProbeResult BuildUnavailableResult(DateTimeOffset timestamp, string reason, string diagnostics)
+    private static MousePowerSnapshot FinalizeSnapshot(MousePowerSnapshot snapshot)
     {
-        return new BatteryProbeResult(
-            "Battery: unavailable",
-            "Device: no compatible Razer HID device",
-            $"Last probe: {reason} at {timestamp:HH:mm:ss}",
-            TruncateHeader($"Diagnostics: {diagnostics}"),
-            "ViperLink spike\nBattery unavailable");
+        return snapshot with { LogFilePath = WriteDiagnosticsLog(snapshot) };
     }
 
-    private static string? WriteDiagnosticsLog(DateTimeOffset timestamp, string diagnostics, BatteryProbeResult? result)
+    private static string? WriteDiagnosticsLog(MousePowerSnapshot snapshot)
     {
         try
         {
@@ -285,18 +247,15 @@ public sealed class RazerBatterySpikeService
 
             var logPath = Path.Combine(logDirectory, "probe.log");
             var builder = new StringBuilder();
-            builder.AppendLine($"Timestamp: {timestamp:O}");
-
-            if (result is not null)
-            {
-                builder.AppendLine($"BatteryHeader: {result.BatteryHeader}");
-                builder.AppendLine($"DeviceHeader: {result.DeviceHeader}");
-                builder.AppendLine($"ResultHeader: {result.ResultHeader}");
-                builder.AppendLine($"DiagnosticsHeader: {result.DiagnosticsHeader}");
-            }
+            builder.AppendLine($"Timestamp: {snapshot.Timestamp:O}");
+            builder.AppendLine($"DeviceDisplayName: {snapshot.DeviceDisplayName}");
+            builder.AppendLine($"BatteryPercent: {(snapshot.BatteryPercent is int battery ? battery : "n/a")}");
+            builder.AppendLine($"IsCharging: {(snapshot.IsCharging is bool isCharging ? isCharging : "n/a")}");
+            builder.AppendLine($"IsSuccessful: {snapshot.IsSuccessful}");
+            builder.AppendLine($"ResultDetail: {snapshot.ResultDetail}");
 
             builder.AppendLine("Diagnostics:");
-            builder.AppendLine(diagnostics);
+            builder.AppendLine(snapshot.Diagnostics);
             File.WriteAllText(logPath, builder.ToString());
             return logPath;
         }
@@ -320,7 +279,7 @@ public sealed class RazerBatterySpikeService
             return false;
         }
 
-        if (device.GetMaxFeatureReportLength() < BatteryReportLength)
+        if (device.GetMaxFeatureReportLength() < RazerProtocol.ReportLength)
         {
             return false;
         }
@@ -333,19 +292,6 @@ public sealed class RazerBatterySpikeService
         return !device.DevicePath.Contains("\\kbd", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string LastDiagnosticLine(StringBuilder diagnostics)
-    {
-        var lines = diagnostics
-            .ToString()
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        return lines.LastOrDefault() ?? "no details";
-    }
-
-    private static string TruncateHeader(string value)
-    {
-        return value.Length <= 80 ? value : string.Concat(value.AsSpan(0, 77), "...");
-    }
 }
 
 internal static class HidDeviceExtensions

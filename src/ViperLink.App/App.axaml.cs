@@ -59,8 +59,8 @@ public partial class App : Application
             "Diagnostics: sending battery feature report",
             "ViperLink spike\nProbing Razer battery..."));
 
-        var result = await System.Threading.Tasks.Task.Run(_batteryService.Probe);
-        ApplyResult(result);
+        var snapshot = await System.Threading.Tasks.Task.Run(_batteryService.Probe);
+        ApplyResult(BatteryProbeResult.FromSnapshot(snapshot));
     }
 
     private void ApplyResult(BatteryProbeResult result)
