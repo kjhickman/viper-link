@@ -64,7 +64,7 @@ public partial class App : Application
                 $"Last updated: {DateTimeOffset.Now:HH:mm:ss}",
                 string.Empty,
                 false,
-                "ViperLink\nRefreshing battery status..."));
+                $"{AppIdentity.ProductName}\nRefreshing battery status..."));
         }
 
         var snapshot = await System.Threading.Tasks.Task.Run(_powerReader.Probe);
@@ -143,7 +143,7 @@ public partial class App : Application
         _statusTrayIcon = new TrayIcon
         {
             Icon = _trayIconRenderer.Render(null),
-            ToolTipText = "ViperLink",
+            ToolTipText = AppIdentity.ProductName,
             Menu = menu,
             IsVisible = true,
         };

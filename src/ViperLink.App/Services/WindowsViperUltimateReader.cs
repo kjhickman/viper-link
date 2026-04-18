@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ViperLink.App;
 
 namespace ViperLink.App.Services;
 
@@ -281,7 +282,7 @@ public sealed class WindowsViperUltimateReader : IViperPowerReader
         {
             var logDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "ViperLink");
+                AppIdentity.LogDirectoryName);
             Directory.CreateDirectory(logDirectory);
 
             var logPath = Path.Combine(logDirectory, "probe.log");

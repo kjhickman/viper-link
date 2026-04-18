@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using ViperLink.App;
 
 namespace ViperLink.App.Services;
 
@@ -63,13 +64,13 @@ public sealed record BatteryProbeResult(
 
     private static string BuildTooltip(string deviceName, int batteryPercent, string statusHeader)
     {
-        var tooltip = $"ViperLink\n{deviceName}\nBattery: {batteryPercent}%";
+        var tooltip = $"{AppIdentity.ProductName}\n{deviceName}\nBattery: {batteryPercent}%";
         return $"{tooltip}\n{statusHeader}";
     }
 
     private static string BuildUnavailableTooltip(string statusHeader)
     {
-        return $"ViperLink\nBattery unavailable\n{statusHeader}";
+        return $"{AppIdentity.ProductName}\nBattery unavailable\n{statusHeader}";
     }
 
     private static string BuildStatusHeader(MousePowerSnapshot snapshot, MousePowerSnapshot displaySnapshot, bool isUsingFallback)
