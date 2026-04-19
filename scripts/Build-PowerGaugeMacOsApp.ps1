@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $appName = "PowerGauge"
-$defaultSourceDir = Join-Path $repoRoot "artifacts/bin/PowerGauge/Debug/net10.0"
+$defaultSourceDir = Join-Path $repoRoot "artifacts/publish/macos-arm64"
 $resolvedSourceDir = if ([string]::IsNullOrWhiteSpace($SourceDir)) { $defaultSourceDir } else { $SourceDir }
 $resolvedOutputDir = if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     Join-Path $repoRoot "artifacts/package/macos/$appName.app"
