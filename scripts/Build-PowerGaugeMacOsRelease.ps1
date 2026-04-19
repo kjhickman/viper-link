@@ -77,6 +77,17 @@ if ($IsMacOS) {
     if ($LASTEXITCODE -ne 0) {
         throw "chmod failed with exit code $LASTEXITCODE"
     }
+
+    Write-Host "Applying ad-hoc code signature to app bundle..."
+    & codesign --force --deep --sign - $appBundlePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "codesign failed with exit code $LASTEXITCODE"
+    }
+
+    & codesign --verify --deep --strict $appBundlePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "codesign verification failed with exit code $LASTEXITCODE"
+    }
 }
 
 if ($IsMacOS) {
