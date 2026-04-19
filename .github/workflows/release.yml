@@ -82,3 +82,54 @@ jobs:
           file: artifacts/release/PowerGauge-windows-x64-setup-${{ steps.version.outputs.value }}.exe
           asset_name: PowerGauge-windows-x64-setup-${{ steps.version.outputs.value }}.exe
           overwrite: true
+
+  publish-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Derive release version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            tag="${{ github.event.release.tag_name }}"
+            if [[ -z "$tag" ]]; then
+              echo "Release tag name is empty." >&2
+              exit 1
+            fi
+
+            version="${tag#v}"
+          fi
+
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build release assets
+        shell: bash
+        run: |
+          zsh ./scripts/build-macos-release.sh "${{ steps.version.outputs.value }}"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: PowerGauge-macos-arm64-${{ steps.version.outputs.value }}
+          path: artifacts/release/PowerGauge-macos-arm64-${{ steps.version.outputs.value }}.zip
+
+      - name: Upload macOS zip to release
+        if: github.event_name == 'release'
+        uses: svenstaro/upload-release-action@2.11.5
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.event.release.tag_name }}
+          file: artifacts/release/PowerGauge-macos-arm64-${{ steps.version.outputs.value }}.zip
+          asset_name: PowerGauge-macos-arm64-${{ steps.version.outputs.value }}.zip
+          overwrite: true
